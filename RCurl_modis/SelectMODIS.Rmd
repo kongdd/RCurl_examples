@@ -1,0 +1,121 @@
+---
+title: "Combind MODIS products in research region using MRT"
+author: "kongdd"
+date: "2016年11月26日"
+output: 
+  html_document: 
+    css: ~/R/style.css
+    theme: united
+---
+### select which MODIS product in the research regions 
+本文主要讲解如何采用maptools挑选研究区域内MODIS产品对应的tile grid, 以减少数据下与数据拼接的任务栏。
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, comment = "")
+```
+
+```{r library, message=FALSE}
+library(knitr)
+library(magrittr)
+library(maptools)
+if (!require(printr)) {
+  devtools::install_github("yihui/printr")
+  library(printr)
+}
+```
+If have ssh error: curl::curl_fetch_disk(url, x$path, handle = handle): SSL connect error. 
+you can try this `httr::set_config(config(ssl_verifypeer = 0L))`
+
+### 1. Main function  
+We construct two polygons using sn_bound information and clipRegion by **maptools** package. And then using over function to clip MODIS tile grid in clipRegion.
+```{r mainfunctions}
+#' @param sn_bound sn_bound information of global MODIS products
+#' @param clipRegion [lat_min, lat_mxd, long_min, lon_max]
+#' @return 
+#' clipgrid sn_bound information of clip regions
+#' info file code information, example "h21v03" 
+selectMODIS <- function(sn_bound, clipRegion){
+  ## sn_gring
+  # x <- sn_bound[1, ]
+  # polygoni <- function(x) Polygon(cbind(x = as.numeric(x[, seq(3, 10, 2)]), 
+  #                                       y = as.numeric(x[, seq(4, 10, 2)])))
+  ## sn_bound
+  polygoni <- function(x) Polygon(cbind(x = as.numeric(x[, c(3,3,4,4)]), 
+                                        y = as.numeric(x[, c(5,6,6,5)])))
+  polys <- list()
+  for (i in 1:nrow(sn_bound))
+    polys[[i]] <- Polygons(list(polygoni(sn_bound[i, ])), ID = i)
+  poly <- SpatialPolygons(polys)
+  poly_df <- SpatialPolygonsDataFrame(poly, sn_bound)
+  
+  # spplot(poly_df, "ih")
+  # range_clip = [25, 40, 73, 105]; TP
+  # range_origin = [17, 54, 73, 136]; china
+  # bound <- c(25, 40, 73, 105)
+  
+  points <- data.frame(x = clipRegion[c(3:4,4:3)], y = clipRegion[c(1,1,2,2)])
+  clipshape <- Polygon(points)
+  
+  # SpatialPolygonDataframe over spatialPolygons
+  Id <- over(poly_df, SpatialPolygons(list(Polygons(list(clipshape), "shape")))) %>% 
+    {as.numeric(which(!is.na(.)))}
+  clipgrid <- sn_bound[Id, ]
+  info <- sprintf("h%02dv%02d", clipgrid$ih, clipgrid$iv)
+  return(list(clipgrid = clipgrid, tileInfo=info))
+}
+```
+
+### 2. 以MODA312产品为例，挑选、拼接中国区域内的MODIS数据
+暂定中国区域范围lat:17-54, long:73:136  
+you can download sn_bound_10deg.txt file at https://modis-land.gsfc.nasa.gov/MODLAND_grid.html
+```{r cars}
+## get MODIS grid boundrectangle information
+## construct MODIS grid polygon shape according to sn_bound
+sn_bound <- read.table("data/sn_bound_10deg.txt", header = T, skip = 6)
+sn_bound[sn_bound == -999 | sn_bound == -99] <- NA
+sn_bound <- na.omit(sn_bound) %>% set_rownames(1:nrow(.))
+# head(sn_bound)
+
+clipRegion <- c(17, 54, 73, 136)
+select <- selectMODIS(sn_bound, clipRegion)
+kable(head(select$clipgrid), caption = "clip Region's sn_bound information")
+# clip Region's tile information
+head(select$tileInfo)
+```
+### 3. filter and combind MODIS product files  
+Then you can use select tile information to filter input files when conbind MODIS products using MRT. If your MODIS product were not downloaded. You can using RCurl and grep to filter the file you need download by the tile grid information we cliped. In this part, we just show how to filter files already downloaded.
+
+```{r filter and combine, eval = F}
+dirs <- "data/MODA312/"#where multi year MODIS product saved.
+outdir <- "E:\\github\\MODISpinjie\\MOD13A2_EVI\\"
+
+# filter files in clipRegion
+tiles <- select$tileInfo
+fnames <- lapply(dirs, dir, full.names = T, 
+                 pattern = sprintf("*%s*.hdf", paste0(info, collapse = "|"))) %>%
+  lapply(., function(x) write.table(gsub("/", "\\\\", x), quote = F, col.names = F, row.names = F, 
+                                    file = paste0("data/lujing/MOD13A2_", basename(dirname(x[1])), ".txt")))
+# fnames <- dir(indir, full.names = T, pattern = sprintf("*%s*.hdf", paste0(tiles, collapse = "|"))) %>%
+#   write.table(gsub("/", "\\\\", .), quote = F, col.names = F, row.names = F, 
+#               file = paste0("data/lujing/MOD13A2_", basename(indir), ".txt"))
+fnames <- dir("E:\\github\\MODISpinjie/data/lujing/", pattern = "*.txt", full.names = T) %>%
+  gsub("/", "\\\\", .)
+
+# construct combined cmd command. keep NDVI and EVI variables
+command <- list()
+for (i in 1:length(fnames)){#length(fnames)
+  infile <- fnames[i]
+  outfile <- paste0(outdir, gsub(".txt","", basename(infile)), ".hdf")
+  command[[i]] <- sprintf('C:/MRT/bin/mrtmosaic.exe -i %s -s "1 1 1 0 0 0 0 " -o %s', infile, outfile)
+}
+command <- unlist(command)
+n <- length(command)
+res <- split(command, cut(seq_along(command), 4))
+res <- lapply(res, function(x) c("set MRTDATADIR=E:\\github\\MODISpinjie", x))
+for (i in seq_along(res)){
+  file <- sprintf("MOD13A2_EVI_pinjie%d.bat", i)
+  write.table(res[[i]], file, quote = F, row.names = F, col.names = F)
+}
+```
+
+Then you need to run this bat files we just generate. Resample in the next step, and plot to check the result.
