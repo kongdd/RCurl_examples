@@ -3,3 +3,8 @@
 .RData
 .Ruserdata
 *.html
+RCurl_elearn/data
+RCurl_elearn/tmp
+RCurl_blog
+*.txt
+*.xlsx

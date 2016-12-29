@@ -41,7 +41,7 @@ getParams <- function(url,
 
 ```{r cos login}
 user <- "kongdd"
-pwd <- "****"
+pwd <- ""
 # source('../R/MainFunction.R', encoding = 'UTF-8', echo=TRUE)
 # library(xml2)
 

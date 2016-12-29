@@ -4,7 +4,29 @@ library(magrittr)
 library(reshape2)
 library(plyr)
 
-getParams <- function(url, 
+## -------------- html & xml functions ----------------
+html_body <- function(page, xpath = "//body") htmlParse(page, encoding = "utf-8") %>% getNodeSet(xpath)
+save_html <- function(x, file) write_xml(read_html(x), file)
+## ------------------------------- GLOBAL FUNCTIONS --------------------------
+listk <- function(...){
+  # get variable names from input expressions
+  cols <- as.list(substitute(list(...)))[-1]
+  vars <- names(cols)
+  if (is.null(vars)){
+    Id_noname <- seq_along(cols)
+  }else{
+    Id_noname <- which(vars == "")
+  }
+  
+  if (length(Id_noname) > 0)
+    vars[Id_noname] <- sapply(cols[Id_noname], deparse)
+  # ifelse(is.null(vars), Id_noname <- seq_along(cols), Id_noname <- which(vars == ""))
+  x <- setNames(list(...), vars)
+  return(x)
+  # print(vars)
+}
+
+url2params_kong <- function(url, 
                       containURL = substr(url, 1, 4) == "http"){
   str_find_first <- function(str, pattern)
     regexpr(pattern, str) %>% {list(pos = as.numeric(.), len = attr(., "match.length"))}
@@ -15,7 +37,8 @@ getParams <- function(url,
     set_names(list(substr(str, pos$pos + pos$len, nchar(str))), substr(str, 1, pos$pos - 1))
   }
   
-  url <- iconv(URLdecode(url), "utf-8", "gbk")
+  # url <- iconv(URLdecode(url), "utf-8", "gbk")
+  url <- iconv(url, "utf-8", "gbk")
   if (containURL){
     pos <- str_find_first(url, "\\?")
     if (pos$pos > 0) url <- substr(url, pos$pos + 1, nchar(url))
@@ -23,6 +46,32 @@ getParams <- function(url,
   abcd <- strsplit(url,"&")[[1]]
   params <- lapply(abcd, str_split_first, pattern="\\=") %>% do.call(c,.)
   return(params)
+}
+
+#' @param clip If TRUE, it will get url string from clipboard
+url2params <- function(url, show=T, clip = F){
+  if (clip) url <- suppressWarnings(readLines("clipboard"))
+  # url <- URLdecode(url)
+  params <- as.list(getFormParams(url)) %>% lapply(URLdecode)
+  if (show) print(str(params))
+  return(params)
+}
+
+params2URL <- function(urlRaw, params){
+  URL <- paste(urlRaw, paste(names(params), params, collapse = "&",sep="="), sep="?")
+  return(URL)
+}
+
+## global functions ---------------------
+getCookies <- function(rhead = h$value()){
+  # rhead <- h$value()
+  cookies <- rhead[names(rhead)=="Set-Cookie"]
+  cookies <- paste(lapply(strsplit(cookies, ";"),function(v) v[1]),collapse = ";",sep = ";")
+  return(cookies)
+}
+cookies2list <- function(cookies){
+  strsplit(cookies, ";")[[1]] %>% 
+    ldply(function(x) strsplit(x, "=")[[1]]) %>% {set_names(as.list(.[, 2]), .[, 1])}
 }
 
 ## initial CNKI ip login---------------------------------
@@ -50,7 +99,7 @@ login <- function(){
 extractData <- function(page){
   trs <- htmlParse(page, encoding = "utf-8") %>% getNodeSet(., "//table/tr")
   if (length(trs) == 0){
-    warning("cnki数据库存在异常，请检查!")
+    # warning("cnki数据库存在异常，请检查!")
     return(FALSE)
   }
   df <- lapply(trs, function(tr) xpathSApply(tr, "td", xmlValue))
@@ -103,7 +152,7 @@ getNongye_data <- function(items, countyId, fname, sleep = 5){
     warnings("返回结果异常")
     cat(sprintf("%s\n", page))
     #break#结果异常时立马终止程序
-    stop("返回结果异常，为防止ip被封请请马上处理！")
+    # stop("返回结果异常，为防止ip被封请请马上处理！")
   }else{
     dfOut <- extractData(page)
     write.table(dfOut, file = fname, col.names = F, row.names = F, sep = ",", quote = F)
