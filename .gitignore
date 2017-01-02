@@ -8,3 +8,5 @@ RCurl_elearn/tmp
 RCurl_blog
 *.txt
 *.xlsx
+*.sublime-project
+*.sublime-workspace

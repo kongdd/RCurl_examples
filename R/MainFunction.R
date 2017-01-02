@@ -1,8 +1,14 @@
 library(RCurl)
-library(XML)
+library(xml2)
+library(V8)
 library(magrittr)
 library(reshape2)
 library(plyr)
+library(stringr)
+library(foreach)
+library(iterators)
+library(readr)
+library(openxlsx)
 
 ## -------------- html & xml functions ----------------
 html_body <- function(page, xpath = "//body") htmlParse(page, encoding = "utf-8") %>% getNodeSet(xpath)
