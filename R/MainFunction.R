@@ -32,28 +32,6 @@ listk <- function(...){
   # print(vars)
 }
 
-url2params_kong <- function(url, 
-                      containURL = substr(url, 1, 4) == "http"){
-  str_find_first <- function(str, pattern)
-    regexpr(pattern, str) %>% {list(pos = as.numeric(.), len = attr(., "match.length"))}
-  
-  str_split_first <- function(str, pattern){
-    pos <- str_find_first(str, pattern)
-    if (pos$pos < 0) return(set_names(list(""), str))
-    set_names(list(substr(str, pos$pos + pos$len, nchar(str))), substr(str, 1, pos$pos - 1))
-  }
-  
-  # url <- iconv(URLdecode(url), "utf-8", "gbk")
-  url <- iconv(url, "utf-8", "gbk")
-  if (containURL){
-    pos <- str_find_first(url, "\\?")
-    if (pos$pos > 0) url <- substr(url, pos$pos + 1, nchar(url))
-  }
-  abcd <- strsplit(url,"&")[[1]]
-  params <- lapply(abcd, str_split_first, pattern="\\=") %>% do.call(c,.)
-  return(params)
-}
-
 #' @param clip If TRUE, it will get url string from clipboard
 url2params <- function(url, show=T, clip = F){
   if (clip) url <- suppressWarnings(readLines("clipboard"))
