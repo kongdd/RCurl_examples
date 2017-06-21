@@ -12,7 +12,10 @@ Overview
 - sysu blackborad login and submit grade automatically
 - RCurl select assigned regions MODIS data and download, combine and resample batchly
 - [统计之都论](http://cos.name/cn/) login
- 
+- RCurl download wiley paper quickly, only for academic use. Details can be sean my another project `Ipaper`. 
+It turn out quite easy!
+
 #### Plans
-- RCurl download wiley paper quickly, only for academic use
 - After login QQ, grasp blog and useful information
+- Modified some kenal function with httr package. The first one will be sysu blackborad.
+- add an another example oirs

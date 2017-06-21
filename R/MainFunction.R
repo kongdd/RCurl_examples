@@ -1,35 +1,83 @@
+# source("E:/GitHub/RCurl_project/R/MainFunction.R", encoding = "utf-8")
 library(RCurl)
-library(xml2)
+library(rvest)
+
 library(V8)
+library(xml2)
+library(jsonlite)
+
 library(magrittr)
 library(reshape2)
 library(plyr)
 library(stringr)
 library(foreach)
 library(iterators)
+
 library(readr)
 library(openxlsx)
+# library(floodmap) #private package, could be found in my Github.
+
+#' @return time stamp, just like 1498029994455 (length of 13)
+systime <- function() as.character(floor(as.numeric(Sys.time())*1000))
 
 ## -------------- html & xml functions ----------------
-html_body <- function(page, xpath = "//body") htmlParse(page, encoding = "utf-8") %>% getNodeSet(xpath)
-save_html <- function(x, file) write_xml(read_html(x), file)
+xml_check <- function(x){
+  p <- if(class(x)[1] %in% c("xml_document", "xml_node")) x else read_html(x)
+  return(p)
+}
+
+save_html <- function(x, file = "kong.html") write_xml(xml_check(x), file)
+
+html_body <- function(p, xpath = "//body") xml_find_all(xml_check(p), xpath)
+
+html_inputs <- function(p, xpath = "//form/input"){
+  xml_check(p) %>% xml_find_all(xpath) %>% 
+    {setNames(as.list(xml_attr(., "value")), xml_attr(., "name"))}
+}
+
+getElementById <- function(p, Id) xml_check(p) %>% xml_find_all(sprintf("//*[@id='%s']", Id))
+getElementByName <- function(p, Id) xml_check(p) %>% xml_find_all(sprintf("//*[@name='%s']", Id))
+
+
+# ch <- get_header()
+get_header <- function(host = "data.cma.cn", origin, cookie = "cookies.txt"){
+  ## RCurl设置, 直接把cookie粘贴过来，即可登录
+  myHttpheader<- c(
+    "User-Agent" = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/56.0.2924.87 Safari/537.36",
+    # "Accept" = "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+    "Accept-Language" = "zh-CN,zh;q=0.8,en;q=0.6",
+    # accept-encoding have a strong influence on res
+    # "Accept-Encoding"="gzip, deflate",
+    "Connection"="keep-alive",
+    # DNT = 1, 
+    # "Upgrade-Insecure-Requests" = 1, 
+    Host = host,
+    Origin = origin, #"http://data.cma.cn",
+    "X-Requested-With" = "XMLHttpRequest")
+  # file_cookie <- "cookies.txt"
+  
+  ch <- getCurlHandle(# cainfo="pem/cacert.pem",
+    # ssl.verifyhost=FALSE, ssl.verifypeer = FALSE,
+    followlocation = TRUE,
+    verbose = TRUE, 
+    cookiejar = cookie, cookiefile = cookie,
+    httpheader = myHttpheader)#带上百宝箱开始上路
+  tmp <- curlSetOpt(curl = ch)
+  return(ch)
+}
+
 ## ------------------------------- GLOBAL FUNCTIONS --------------------------
 listk <- function(...){
   # get variable names from input expressions
   cols <- as.list(substitute(list(...)))[-1]
   vars <- names(cols)
-  if (is.null(vars)){
-    Id_noname <- seq_along(cols)
-  }else{
-    Id_noname <- which(vars == "")
-  }
-  
+  Id_noname <- if (is.null(vars)) seq_along(cols) else which(vars == "")
+
   if (length(Id_noname) > 0)
     vars[Id_noname] <- sapply(cols[Id_noname], deparse)
   # ifelse(is.null(vars), Id_noname <- seq_along(cols), Id_noname <- which(vars == ""))
   x <- setNames(list(...), vars)
   return(x)
-  # print(vars)
 }
 
 #' @param clip If TRUE, it will get url string from clipboard
@@ -47,100 +95,18 @@ params2URL <- function(urlRaw, params){
 }
 
 ## global functions ---------------------
-getCookies <- function(rhead = h$value()){
-  # rhead <- h$value()
-  cookies <- rhead[names(rhead)=="Set-Cookie"]
-  cookies <- paste(lapply(strsplit(cookies, ";"),function(v) v[1]),collapse = ";",sep = ";")
-  return(cookies)
+# getCookies <- function(rhead = h$value()){
+#   # rhead <- h$value()
+#   cookies <- rhead[names(rhead)=="Set-Cookie"]
+#   cookies <- paste(lapply(strsplit(cookies, ";"),function(v) v[1]),collapse = ";",sep = ";")
+#   return(cookies)
+# }
+getCookies <- function(curl = ch){
+  x <- getCurlInfo(ch)$cookielist
+  strsplit(x, "\t") %>% do.call(rbind.data.frame, .) %>% 
+    set_names(c("domain", "bool", "path", "bool2", "expires", "name", "value"))
 }
 cookies2list <- function(cookies){
   strsplit(cookies, ";")[[1]] %>% 
     ldply(function(x) strsplit(x, "=")[[1]]) %>% {set_names(as.list(.[, 2]), .[, 1])}
-}
-
-## initial CNKI ip login---------------------------------
-## 中国知网initial login
-login <- function(){
-  myHttpheader<- c(
-    "User-Agent" = "Mozilla/5.0 (Windows NT 6.1; WOW64; rv:47.0) Gecko/20100101 Firefox/47.0",
-    "Accept" = "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-    "Accept-Language" = "zh-CN,zh;q=0.8,en-US;q=0.5,en;q=0.3",
-    "Connection"="keep-alive",
-    "Host" = "tongji.cnki.net")
-  ch <- getCurlHandle()#带上百宝箱开始上路
-  curlSetOpt(curl = ch, ssl.verifypeer = FALSE, 
-             # followlocation = TRUE, 
-             cookiejar = "cookies_cnki.txt", #cookiefile = "cookies_cnki.txt", 
-             httpheader = myHttpheader)
-  url_root <- "http://tongji.cnki.net/kns55/Dig/dig.aspx"
-  page_root <- getURL(url_root, curl = ch)#ch应该会记录cookie信息
-  if (length(grep("中山大学", page_root)>0)) 
-    cat("ip验证成功，可以使用CNKI！\n") else stop("身份验证失败\n")
-  #如果身份验证失败，则终止程序运行！
-  ch#quickly return
-}
-
-extractData <- function(page){
-  trs <- htmlParse(page, encoding = "utf-8") %>% getNodeSet(., "//table/tr")
-  if (length(trs) == 0){
-    # warning("cnki数据库存在异常，请检查!")
-    return(FALSE)
-  }
-  df <- lapply(trs, function(tr) xpathSApply(tr, "td", xmlValue))
-  
-  # rowspan <- getNodeSet(trs[[1]], "td[@rowspan]")#据此判断是何种类型数据
-  ## trs需要仔细处理
-  # years <- df[[1]][-1] %>% gsub("年", "", .) %>% as.numeric()
-  years <- rep(xpathSApply(trs[[1]], path = "td", xmlValue) %>% gsub("年|\\s", "", .), #同时移除编码错误的空格 
-               xpathSApply(trs[[1]], path = "td", xmlGetAttr, name = "colspan") %>% as.numeric())
-  df[[1]] <- years
-  data <- do.call(cbind, df) %>% t %>% data.frame(.,stringsAsFactors = F)
-  data
-  # colnames(data) <- data[1, ]; data <- data[-1, ]
-  # data
-  #write.table(data, file = "text.txt", col.names = F, row.names = F, sep = "\t", quote = F)
-  # countyInfo <- data[, 1:3]
-  # list(years = years, countyInfo = countyInfo, data = data)#quickly return
-}
-
-getNongye_data <- function(items, countyId, fname, sleep = 5){
-  searchTarget <- paste0(paste(items, collapse = ";"), ";")
-  searchTarget <- iconv(searchTarget, "gbk", "utf-8") %>% charToRaw() %>% toupper() %>% paste("%", ., collapse = "", sep = "")
-  prov <- paste0(paste(countyId, collapse = ";"), ";")
-  
-  ## year style table url
-  url <-  paste0("http://tongji.cnki.net/kns55/Dig/SubDig/Ajax/DigResultUIBLL.ashx?",
-                 sprintf("areaSelType=xjSel&dataSource=all&initial=initial&postDefTar=&postTar=%s&postYear=full&postZones=%s&tablestyle=area",
-                         searchTarget, prov %>% URLencode(reserved = T)))
-  ## area style table url
-  url_area <- paste0("http://tongji.cnki.net/kns55/Dig/SubDig/Ajax/DigResultUIBLL.ashx?",
-                     sprintf("postZones=%s&postTar=%s&postYear=full&tablestyle=area&areaSelType=xjSel&postDefTar=&dataSource=all",
-                             prov %>% URLencode(reserved = T), searchTarget))
-  refer <- paste0("http://tongji.cnki.net/kns55/Dig/DigResult.aspx?",
-                  sprintf("postZones=%s&postTar=%s&postYear=full&areaSelType=xjSel&postDefTar=",
-                          prov %>% URLencode(reserved = T), searchTarget))
-  
-  params <- list(areaSelType = "xjSel", dataSource = "all", initial = "initial", postDefTar = "", 
-                 postTar = paste0(paste(x[[j]]$items, collapse = ";"), ";"), 
-                 postYear = "full", 
-                 postZones = prov, 
-                 tablestyle = "area")
-  ## refer的请求对参数的传递至关重要！
-  tmp <- getURL(refer, curl = ch, Referer = "http://tongji.cnki.net/kns55/Dig/dig.aspx")
-  # page <- getURL(url, curl = ch)
-  # page <- postForm("http://tongji.cnki.net/kns55/Dig/SubDig/Ajax/DigResultUIBLL.ashx", .params = params, curl = ch,
-  #                  .opts = curlOptions(Referer = refer, verbose = F))#postForm传递参数出现数据混乱
-  page <- getURL(url_area, curl = ch, Referer = refer)
-  
-  if (nchar(page) < 1000){
-    warnings("返回结果异常")
-    cat(sprintf("%s\n", page))
-    #break#结果异常时立马终止程序
-    # stop("返回结果异常，为防止ip被封请请马上处理！")
-  }else{
-    dfOut <- extractData(page)
-    write.table(dfOut, file = fname, col.names = F, row.names = F, sep = ",", quote = F)
-    if (length(dfOut) > 1) return(TRUE)
-  }
-  return(FALSE)
 }
