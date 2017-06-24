@@ -27,7 +27,7 @@ for (i in 331:nrow(x)){
     
     ## 判断是否已经提交过分数, if true have grade
     grade <- xml_text(xml_find_first(doc, '//span[@id="blogGradeValue"]')) %>% print
-    haveGrade <- grade  %>% {length(grep("--", .)) == 0}
+    haveGrade <- grade %>% {length(grep("--", .)) == 0}
     if (haveGrade) {
       message("Already have grade!")
     }else{

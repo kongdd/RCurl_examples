@@ -23,7 +23,6 @@ myHttpheader<- c(
   "Accept-Encoding"="gzip, deflate",
   "Accept-Language" = "zh-CN,zh;q=0.8,en-US;q=0.5,en;q=0.3",
   "Connection"="keep-alive",
-  # "Cookie" = "JSESSIONID=DD1F84CD54D9831F8065A5026039A9CC.root; safedog-flow-item=AE46F7B8895D4633E2C87C0C0809A2EB; session_id=D15553506517F2E4E65E8CCD6F8F3DCA; JSESSIONID=36FBE15A073E5FACDD6DB6A61E6ADB45.root; xythosdrive=0",
   DNT = 1,
   "Host" = "elearning.ne.sysu.edu.cn",
   # Referer = url$referer, 

@@ -9,9 +9,9 @@ RCurl_elearn/tmp
 RCurl_blog
 *.txt
 *.xlsx
+*.pdf
 *.sublime-project
 *.sublime-workspace
 RCurl_envir
 RCurl_oirs
 test
-
