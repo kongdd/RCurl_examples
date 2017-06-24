@@ -9,6 +9,7 @@ Overview
 
 #### Finished 
 - QQ login
+- sina blog login (update 2017-06-25)
 - sysu blackborad login and submit grade automatically
 - RCurl select assigned regions MODIS data and download, combine and resample batchly
 - [统计之都论](http://cos.name/cn/) login

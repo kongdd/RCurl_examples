@@ -1,9 +1,10 @@
 # source("E:/GitHub/RCurl_project/R/MainFunction.R", encoding = "utf-8")
 library(RCurl)
-library(rvest)
 
-library(V8)
+library(httr)
 library(xml2)
+library(rvest)
+library(V8)
 library(jsonlite)
 
 library(magrittr)
@@ -20,7 +21,6 @@ library(floodmap) #private package, could be found in my Github.
 # set httr global header
 header <- "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36"
 set_config(c(add_headers(`User-Agent` = header)))
-
 
 #' @return time stamp, just like 1498029994455 (length of 13)
 systime <- function() as.character(floor(as.numeric(Sys.time())*1000))
@@ -42,7 +42,6 @@ html_inputs <- function(p, xpath = "//form/input"){
 
 getElementById <- function(p, Id) xml_check(p) %>% xml_find_all(sprintf("//*[@id='%s']", Id))
 getElementByName <- function(p, Id) xml_check(p) %>% xml_find_all(sprintf("//*[@name='%s']", Id))
-
 
 # ch <- get_header()
 get_header <- function(host = "data.cma.cn", origin, cookie = "cookies.txt"){
@@ -85,9 +84,7 @@ listk <- function(...){
   return(x)
 }
 
-
-
-#' Get URL query paramters
+#' Get query paramters from URL address
 #' 
 #' @param show If TRUE, it whill print returned parameter in the console.
 #' @param clip If TRUE, it will get url string from clipboard
@@ -139,24 +136,45 @@ url2params <- function(url, show=T, clip = F,
   if (returnI) return(params)
 }
 
+#' constuct URL based on query parameters
 params2URL <- function(urlRaw, params){
   URL <- paste(urlRaw, paste(names(params), params, collapse = "&",sep="="), sep="?")
   return(URL)
 }
 
-## global functions ---------------------
-# getCookies <- function(rhead = h$value()){
-#   # rhead <- h$value()
-#   cookies <- rhead[names(rhead)=="Set-Cookie"]
-#   cookies <- paste(lapply(strsplit(cookies, ";"),function(v) v[1]),collapse = ";",sep = ";")
-#   return(cookies)
-# }
-getCookies <- function(curl = ch){
+#' get cookies from curl handle
+getCookies_hf <- function(rhead = h$value()){
+  # rhead <- h$value()
+  cookies <- rhead[names(rhead)=="Set-Cookie"] %>%
+    {lapply(strsplit(., ";"), `[`, i=1)} %>%
+    paste(collapse = ";",sep = ";")
+  return(cookies)
+}
+
+#' get cookies from httpheader update handle
+getCookies_ch <- function(curl = ch){
   x <- getCurlInfo(ch)$cookielist
   strsplit(x, "\t") %>% do.call(rbind.data.frame, .) %>% 
     set_names(c("domain", "bool", "path", "bool2", "expires", "name", "value"))
 }
+
 cookies2list <- function(cookies){
   strsplit(cookies, ";")[[1]] %>% 
-    ldply(function(x) strsplit(x, "=")[[1]]) %>% {set_names(as.list(.[, 2]), .[, 1])}
+    ldply(function(x) strsplit(x, "=")[[1]]) %>% 
+    {set_names(as.list(.[, 2]), .[, 1])}
+}
+
+#' convert Raw format string into the real raw format variable
+#' @param raw format string
+#' @return raw vector
+#' @examples 
+#' key_p <- "EB2A38568661887FA180BDDB5CABD5F21C7BFD59C090CB2D245A87AC253062882729293E5506350508E7F9AA3BB77F4333231490F915F6D63C55FE2F08A49B353F444AD3993CACC02DB784ABBB8E42A9B1BBFFFB38BE18D78E87A0E41B9B8F73A928EE0CCEE1F6739884B9777E4FE9E88A1BBE495927AC4A799B3181D6442443"
+#' stringToRaw(key_p)
+stringToRaw <- function(str){
+  string <- raw()
+  for(i in 1:(str_length(str)/2)){
+    string[i] <- str_sub(str, (2*i-1), (2*i)) %>% 
+      as.hexmode() %>% unlist %>% as.raw()
+  }
+  return(string)
 }

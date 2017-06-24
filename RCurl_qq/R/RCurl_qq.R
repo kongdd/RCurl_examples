@@ -68,14 +68,16 @@ login_sig <- cookies$pt_login_sig
 
 ## step 2: get verifycode and pt_verifysession_v1.
 #  TX will check username and the login's environment is safe
-params = list("uin" = uin,
-              "appid" = appid,
-              "pt_tea" = 1,
-              "pt_vcode" = 1,
-              "js_ver" = 10151,
-              "js_type" = 1,
-              "login_sig" = login_sig,
-              "u1" = urlSuccess)
+params = list(
+  "uin"       = uin,
+  "appid"     = appid,
+  "pt_tea"    = 1,
+  "pt_vcode"  = 1,
+  "js_ver"    = 10151,
+  "js_type"   = 1,
+  "login_sig" = login_sig,
+  "u1"        = urlSuccess
+)
 p2 <- params2URL(urlCheck, params) %>% 
   getURL(.encoding="utf-8",headerfunction = h$update, curl = ch) %>% gsub("'", "", .) %T>% print
 # p2 <- getForm(urlCheck, .params = params, headerfunction = h$update, curl = ch) %T>% print
@@ -96,26 +98,26 @@ encrypt_pwd <- tx_pwd_encode_by_js(pwd, salt, verifycode)
 ## step 3: login and get cookie.
 #  TX will check encrypt(password)
 params_login = list(
-  'u' = uin,
-  'verifycode' = verifycode,
-  'pt_vcode_v1' = 0,
+  'u'                   = uin,
+  'verifycode'          = verifycode,
+  'pt_vcode_v1'         = 0,
   'pt_verifysession_v1' = pt_verifysession_v1,
-  'p' = encrypt_pwd,
-  'pt_randsalt' = 0,
-  'u1' = urlSuccess,
-  'ptredirect' = 0,
-  'h' = 1,
-  't' = 1,
-  'g' = 1,
-  'from_ui' = 1,
-  'ptlang' = 2052,
-  'action' = action,
-  'js_ver' = 10143,
-  'js_type' = 1,
-  'aid' = appid,
-  'daid' = 5,
-  # pt_uistyle = "40",
-  'login_sig' = login_sig
+  'p'                   = encrypt_pwd,
+  'pt_randsalt'         = 0,
+  'u1'                  = urlSuccess,
+  'ptredirect'          = 0,
+  'h'                   = 1,
+  't'                   = 1,
+  'g'                   = 1,
+  'from_ui'             = 1,
+  'ptlang'              = 2052,
+  'action'              = action,
+  'js_ver'              = 10143,
+  'js_type'             = 1,
+  'aid'                 = appid,
+  'daid'                = 5,
+  # pt_uistyle          = "40",
+  'login_sig'           = login_sig
 )
 # params2URL(urlLogin, params_login) %>% getURL(., curl = ch)
 # ch2 <- getCurlHandle()#带上百宝箱开始上路
