@@ -31,7 +31,6 @@ p2 <- POST("http://elearning.ne.sysu.edu.cn/webapps/gradebook/do/instructor/view
 attemptId <- xml_find_all(p2, '//tbody[@id="listContainer_databody"]/tr/th/a') %>% xml_attr("attemptid")
 
 ## 03. 登陆查询需要改作业的全部人员
-url_root <- "http://elearning.ne.sysu.edu.cn/webapps/gradebook/do/instructor/performGrading"
 param3 <- list(
   course_id            	=  course_id,
   source               	= "cp_gradebook_needs_grading",
