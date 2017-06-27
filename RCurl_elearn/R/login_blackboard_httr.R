@@ -12,6 +12,7 @@ source('R/MainFunction.R', encoding = 'UTF-8')
 ## 00. Set global 
 set_config(add_headers(Host = "elearning.ne.sysu.edu.cn",
                        Origin = "http://elearning.ne.sysu.edu.cn"))
+handle_reset("http://elearning.ne.sysu.edu.cn/") #quite important
 
 userInfo <- read.table("RCurl_elearn/userInfo_black.txt", header = T, stringsAsFactors = F)
 user <- as.character(userInfo$user)
@@ -26,7 +27,6 @@ url <-list(
 ## 01. GET the one_time_token parameter
 p <- GET(url$login_origin, verbose()) %>% content()
 one_time_token <- xml_find_all(p, "//input[@name='one_time_token']") %>% xml_attr("value")
-
 
 ## 02. encode password using JS
 ct <- v8()
@@ -54,3 +54,16 @@ p <- POST(url$login_origin, body = params, encode = "form",
 ## 04. verify whether login successfully
 p2 <- GET(url$userinfo) %>% content()
 grep("孔冬冬", as.character(p2))#now you can find your name in p
+
+
+## clear cookies in httr package
+# https://stackoverflow.com/questions/39979393/how-to-remove-cookies-preserved-by-httrget
+
+# detach("package:httr", unload=TRUE)
+# library(httr)
+
+# h1 <- handle('')
+# r1 <- GET("https://some.url/login", handle=h1, authenticate("foo", "bar"))
+# 
+# h2 <- handle('')
+# r2 <- GET("https://some.url/data/?query&subset=1", handle=h2)

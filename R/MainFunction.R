@@ -27,8 +27,7 @@ systime <- function() as.character(floor(as.numeric(Sys.time())*1000))
 
 ## -------------- html & xml functions ----------------
 xml_check <- function(x){
-  p <- if(class(x)[1] %in% c("xml_document", "xml_node")) x else read_html(x)
-  return(p)
+  if(class(x)[1] %in% c("xml_document", "xml_node")) x else read_html(x)
 }
 
 save_html <- function(x, file = "kong.html") write_xml(xml_check(x), file)
@@ -117,18 +116,22 @@ url2params <- function(url, show=T, clip = F,
   returnI = FALSE){
   if (clip) url <- suppressWarnings(readLines("clipboard"))
   # url <- URLdecode(url)
-  url %<>% URLdecode
-  if (iconvI) url %<>% iconv("utf-8", "gbk")
-  params <- as.list(getFormParams(url))
+  # url %<>% URLdecode
+  
+  params <- as.list(getFormParams(url)) %>% 
+    lapply(URLdecode)
+  if (iconvI) params %<>% lapply(iconv, "utf-8", "gbk")
     # lapply(URLdecode) %>% lapply(iconv, "UTF-8", "gbk")
   
   # for the convenience of write param
   if (quote){
     str <- sprintf('  "%s" \t\t= "%s"', names(params), params) %>% 
-      {paste(c('param <- {', ., '}'), collapse = "\n")}
+      paste(collapse = ",\n") %>%
+      paste0("param <- list(\n", ., "\n}") 
   }else{
     str <- sprintf('  %-20s \t= "%s"',  names(params), params) %>% 
-      {paste(c('param <- {', ., '}'), collapse = "\n")} 
+      paste(collapse = ",\n") %>%
+      paste0("param <- list(\n", ., "\n}") 
   }
   
   if (show) cat(str)
