@@ -1,6 +1,7 @@
 # source("E:/GitHub/RCurl_project/R/MainFunction.R", encoding = "utf-8")
-library(RCurl)
+# library(RCurl)
 
+library(curl)
 library(httr)
 library(xml2)
 library(rvest)
@@ -18,9 +19,16 @@ library(readr)
 library(openxlsx)
 library(floodmap) #private package, could be found in my Github.
 
+# Sys.setlocale("LC_TIME", "english") #
+# Sys.setlocale("LC_ALL","English")
+# Sys.getlocale(category = "LC_ALL")
+# [1] "LC_COLLATE=English_United States.1252;LC_CTYPE=English_United States.1252;LC_MONETARY=English_United States.1252;LC_NUMERIC=C;LC_TIME=English_United States.1252"
+
 # set httr global header
 header <- "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36"
-set_config(c(add_headers(`User-Agent` = header)))
+
+set_config(c(add_headers(`User-Agent` = header,
+  Connection =  "keep-alive")))
 
 #' @return time stamp, just like 1498029994455 (length of 13)
 systime <- function() as.character(floor(as.numeric(Sys.time())*1000))
@@ -42,6 +50,15 @@ html_inputs <- function(p, xpath = "//form/input"){
 getElementById <- function(p, Id) xml_check(p) %>% xml_find_all(sprintf("//*[@id='%s']", Id))
 getElementByName <- function(p, Id) xml_check(p) %>% xml_find_all(sprintf("//*[@name='%s']", Id))
 
+uniqid <- function(){
+  ctx <- v8();
+  ctx$source("R/uniqid.js")
+  # ctx$eval("uniqid('----WebKitFormBoundary')")
+  ctx$eval("uniqid('------------------------706')")
+}
+# "----WebKitFormBoundary595a651253cfe"
+# ------------------------706b9a0dff09e04c
+# 595a651253cfe
 # ch <- get_header()
 get_header <- function(host = "data.cma.cn", origin, cookie = "cookies.txt"){
   ## RCurl设置, 直接把cookie粘贴过来，即可登录
