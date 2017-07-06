@@ -17,6 +17,7 @@ library(iterators)
 
 library(readr)
 library(openxlsx)
+library(parallel)
 library(floodmap) #private package, could be found in my Github.
 
 # Sys.setlocale("LC_TIME", "english") #
@@ -29,6 +30,8 @@ header <- "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like 
 
 set_config(c(add_headers(`User-Agent` = header,
   Connection =  "keep-alive")))
+
+
 
 #' @return time stamp, just like 1498029994455 (length of 13)
 systime <- function() as.character(floor(as.numeric(Sys.time())*1000))
@@ -58,34 +61,6 @@ uniqid <- function(){
 }
 # "----WebKitFormBoundary595a651253cfe"
 # ------------------------706b9a0dff09e04c
-# 595a651253cfe
-# ch <- get_header()
-get_header <- function(host = "data.cma.cn", origin, cookie = "cookies.txt"){
-  ## RCurl设置, 直接把cookie粘贴过来，即可登录
-  myHttpheader<- c(
-    "User-Agent" = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/56.0.2924.87 Safari/537.36",
-    # "Accept" = "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
-    "Accept-Language" = "zh-CN,zh;q=0.8,en;q=0.6",
-    # accept-encoding have a strong influence on res
-    # "Accept-Encoding"="gzip, deflate",
-    "Connection"="keep-alive",
-    # DNT = 1, 
-    # "Upgrade-Insecure-Requests" = 1, 
-    Host = host,
-    Origin = origin, #"http://data.cma.cn",
-    "X-Requested-With" = "XMLHttpRequest")
-  # file_cookie <- "cookies.txt"
-  
-  ch <- getCurlHandle(# cainfo="pem/cacert.pem",
-    # ssl.verifyhost=FALSE, ssl.verifypeer = FALSE,
-    followlocation = TRUE,
-    verbose = TRUE, 
-    cookiejar = cookie, cookiefile = cookie,
-    httpheader = myHttpheader)#带上百宝箱开始上路
-  tmp <- curlSetOpt(curl = ch)
-  return(ch)
-}
-
 ## ------------------------------- GLOBAL FUNCTIONS --------------------------
 listk <- function(...){
   # get variable names from input expressions
@@ -197,4 +172,25 @@ stringToRaw <- function(str){
       as.hexmode() %>% unlist %>% as.raw()
   }
   return(string)
+}
+
+#' Initial cluster
+#' 
+#' @description Initial a cluster cl, for parallel computing
+#' @param n works of cluster
+#' @param outfile file to save the parallel console logs
+#' @param pkgs character vector, packages need to load in cluster
+#' @param vars character vector, variables need to export to cluster
+#' @return no return. But it will assign cl into global environment
+cluster_Init <- function(n = 8, pkgs, vars, expr, outfile = "log.txt"){
+  # print(deparse(substitute(expr)))
+  # print(deparse(substitute(expr, env = parent.frame())))
+  cl <- makeCluster(n, outfile = outfile)
+  if (!missing(pkgs)) 
+    clusterEvalQ(cl, invisible(lapply(substitute(pkgs), library, character.only = TRUE)))
+  
+  if (!missing(vars)) clusterExport(cl, vars)
+  if (!missing(expr)) clusterEvalQ(cl, substitute(expr))
+  
+  assign("cl", cl, envir = .GlobalEnv)
 }

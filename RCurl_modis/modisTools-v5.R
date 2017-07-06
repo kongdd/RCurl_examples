@@ -1,10 +1,14 @@
 # source("E:/GitHub/RCurl_project/R/MainFunction.R", encoding = "utf-8")
+library(httr)
+library(xml2)
+library(magrittr)
+
 url <- "https://modis.ornl.gov/cgi-bin/MODIS/GLBVIZ_1_Glb/modis_subset_order_global_col5.pl"
-handle_reset("https://modis.ornl.gov") #quite important
+# handle_reset("https://modis.ornl.gov") #quite important
 # Sys.setlocale("LC_TIME", "english")#
       
 set_config(c(
-  verbose(),
+  # verbose(),
   timeout(60),
   add_headers(
     Connection =  "keep-alive",
@@ -19,27 +23,31 @@ set_config(c(
 ))
 # p <- GET(url, verbose())
 
-getMODIS_points <- function(lat = "35.958767",
-                            lon = "-84.287433",
-                            email = "kongdd@live.cn") {
-    
+getMODIS_points <- function(pos, email = "kongdd@live.cn") {
+    lat <- pos$Latitude
+    lon <- pos$Longitude
+
+    times <- 4
+    # lat = "35.958767"
+    # lon = "-84.287433"
+    # email = "kongdd@live.cn"
     blank_params <- c("show_name", "albedo", "albedo_product")
     src <- tryCatch({
       cat(sprintf("\t| 1. Post position information ...\n"))
       param1 <- list(lat = lat, lon = lon, from_initial_load = "Continue")
       # If falied than try aagain
-      p1 <- RETRY("POST", url, body = param1, times = 3) %>% content()
+      p1 <- RETRY("POST", url, body = param1, times = times) %>% content()
  
       # p1 %>% xml_find_first("//body") %>% xml_text() %>% cat
       # save_html(p1)
       # ----- 02. select params
       param2 <- c(
-        display_product = "MYD15A2",
+        display_product = "MOD15A2",
         html_inputs(p1, "//input")[1:13]
       ) #%T>% str
       
       cat(sprintf("\t| 2. Post product MYD15A2 ...\n"))
-      p2 <- RETRY("POST", url, body = param2, times = 3) %>% content()
+      p2 <- RETRY("POST", url, body = param2, times = times) %>% content()
  
       # ----- 03. retrieve data through email ------
       param3 <- c(
@@ -52,21 +60,21 @@ getMODIS_points <- function(lat = "35.958767",
       # param3[blank_params] <- ""
       
       cat(sprintf("\t| 3. Post email and project information ...\n"))
-      p3 <- RETRY("POST", url, body = param3, times = 3) %>% content()
+      p3 <- RETRY("POST", url, body = param3, times = 4) %>% content()
  
       # ----- 04 confirm submit
       param4 <- html_inputs(p3, "//input")[1:32]
       param4[c(blank_params, "szn", "in_od", "pretty_modis_date")] <- ""
       
       cat(sprintf("\t| 4. submit confirm ...\n"))
-      p4 <- RETRY("POST", url, body = param4, times = 3) %>% content()
+      p4 <- RETRY("POST", url, body = param4, times = times) %>% content()
       xml_find_first(p4, "//p/a[@target='_blank']") %>% xml_attr("href")
       
       # xml_find_first(p4, "//body") %>% xml_text %>% cat
       # save_html(p4)
     }, error = function(e){
       message(sprintf("[%d]: %s", 1, e))
-      NULL
+      NA
     })
     cat(sprintf("\t ** %s **\n", src))
     return(src)
@@ -75,16 +83,19 @@ getMODIS_points <- function(lat = "35.958767",
 # https://modis.ornl.gov/glb_viz_3/03Jul2017_04:26:50_730751277L-29.2639999389648L-61.0279998779296S7L7_MYD15A2/filtered_scaled_Lai_1km.asc
 # http://modis.ornl.gov/glb_viz_3/03Jul2017_04:26:50_730751277L-29.2639999389648L-61.0279998779296S7L7_MYD15A2/filtered_scaled_Fpar_1km.asc
 
+#' retry to execute expr until success before reaches the max try times (maxTimes)
 retry <- function(expr, maxTimes = 3){
   eTimes <- 0
   out <- NULL
-  while (eTimes < 3){
-    out <- tryCatch(expr, 
-      error = function(e){
-        eTimes <<- eTimes + 1
-        message(sprintf("[try%d]: %s", eTimes, e))
-        NULL #If error return NULL
-      })
+  while (eTimes < maxTimes){
+    out <- tryCatch({
+      expr
+      eTimes <- maxTimes
+    }, error = function(e){
+      eTimes <<- eTimes + 1
+      message(sprintf("[try%d]: %s", eTimes, e))
+      NULL #If error return NULL
+    })
   }
   return(out)
 }
