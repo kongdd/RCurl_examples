@@ -12,7 +12,7 @@ Overview
 - sina blog login (update 2017-06-25)
 - sysu blackborad login and submit grade automatically
 - RCurl select assigned regions MODIS data and download, combine and resample batchly
-- [统计之都论](http://cos.name/cn/) login
+- [统计之都论](https://d.cosx.org/) login
 - RCurl batch download papers quickly, only for academic use. Details can be sean in my another project [Ipaper](https://github.com/kongdd/). Its code is quite simple!
 
 #### Plans

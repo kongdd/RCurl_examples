@@ -3,10 +3,20 @@ library(httr)
 library(xml2)
 library(magrittr)
 
+header <- "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36"
 url <- "https://modis.ornl.gov/cgi-bin/MODIS/GLBVIZ_1_Glb/modis_subset_order_global_col5.pl"
 # handle_reset("https://modis.ornl.gov") #quite important
 # Sys.setlocale("LC_TIME", "english")#
-      
+
+xml_check <- function(x){
+  if(class(x)[1] %in% c("xml_document", "xml_node")) x else read_html(x)
+}
+
+html_inputs <- function(p, xpath = "//form/input"){
+  xml_check(p) %>% xml_find_all(xpath) %>% 
+    {setNames(as.list(xml_attr(., "value")), xml_attr(., "name"))}
+}
+
 set_config(c(
   # verbose(),
   timeout(60),
@@ -46,12 +56,12 @@ getMODIS_points <- function(pos, email = "kongdd@live.cn") {
         html_inputs(p1, "//input")[1:13]
       ) #%T>% str
       
-      cat(sprintf("\t| 2. Post product MYD15A2 ...\n"))
+      cat(sprintf("\t| 2. Post product MOD15A2 ...\n"))
       p2 <- RETRY("POST", url, body = param2, times = times) %>% content()
  
       # ----- 03. retrieve data through email ------
       param3 <- c(
-        start_modis_dates = "07/04/2002",
+        start_modis_dates = "01/01/2000",
         end_modis_dates   = "03/22/2017",
         geotiff           = "geotiffreproject",
         email             = email,
@@ -68,6 +78,11 @@ getMODIS_points <- function(pos, email = "kongdd@live.cn") {
       
       cat(sprintf("\t| 4. submit confirm ...\n"))
       p4 <- RETRY("POST", url, body = param4, times = times) %>% content()
+      
+      # show orders in the queue
+      orders <- xml_find_first(p4, '//p[@style="font-weight: bold;"]/span') %>% xml_text()
+      cat(sprintf(" \t| [%s] orders in the queue ...\n", orders))
+      
       xml_find_first(p4, "//p/a[@target='_blank']") %>% xml_attr("href")
       
       # xml_find_first(p4, "//body") %>% xml_text %>% cat

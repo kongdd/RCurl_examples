@@ -1,4 +1,4 @@
-# source("E:/GitHub/RCurl_project/R/MainFunction.R", encoding = "utf-8")
+# source("E:/GitHub/RCurl_examples/R/MainFunction.R", encoding = "utf-8")
 # library(RCurl)
 
 library(curl)
@@ -41,14 +41,16 @@ xml_check <- function(x){
   if(class(x)[1] %in% c("xml_document", "xml_node")) x else read_html(x)
 }
 
-save_html <- function(x, file = "kong.html") write_xml(xml_check(x), file)
-
-html_body <- function(p, xpath = "//body") xml_find_all(xml_check(p), xpath)
-
 html_inputs <- function(p, xpath = "//form/input"){
   xml_check(p) %>% xml_find_all(xpath) %>% 
     {setNames(as.list(xml_attr(., "value")), xml_attr(., "name"))}
 }
+
+save_html <- function(x, file = "kong.html") write_xml(xml_check(x), file)
+
+html_body <- function(p, xpath = "//body") xml_find_all(xml_check(p), xpath)
+
+
 
 getElementById <- function(p, Id) xml_check(p) %>% xml_find_all(sprintf("//*[@id='%s']", Id))
 getElementByName <- function(p, Id) xml_check(p) %>% xml_find_all(sprintf("//*[@name='%s']", Id))
